@@ -1,9 +1,16 @@
-# src/models/triplet_model.py
+# src/models/triplet_model_phase1.py
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-class TripletModel(nn.Module):
+
+class TripletModelPhase1(nn.Module):
+    """
+    Phase 1 model
+    - Pooling: 0.5 * center token + 0.5 * global mean
+    - Projection: hidden -> hidden -> output_dim
+    """
+
     def __init__(self, backbone: nn.Module, output_dim: int = 1024, projection_dropout: float = 0.1):
         super().__init__()
         self.backbone = backbone
@@ -21,7 +28,6 @@ class TripletModel(nn.Module):
                 nn.init.xavier_uniform_(m.weight)
 
     def central_pooled(self, hidden_states: torch.Tensor, attention_mask: torch.Tensor) -> torch.Tensor:
-        # same as your code: 50:50 center token + global mean
         lengths = attention_mask.sum(dim=1)
         global_mean = (hidden_states * attention_mask.unsqueeze(-1)).sum(1) / lengths.clamp(min=1).unsqueeze(-1)
 
@@ -36,4 +42,3 @@ class TripletModel(nn.Module):
         last_hidden = out.hidden_states[-1]
         pooled = self.central_pooled(last_hidden, attention_mask)
         return F.normalize(self.projection(pooled), p=2, dim=-1)
-
