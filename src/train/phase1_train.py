@@ -127,7 +127,7 @@ def main():
     )
     backbone = get_peft_model(backbone, peft_cfg)
 
-    model = TripletModel(backbone, output_dim=args.output_dim, projection_dropout=args.proj_dropout).to(device)
+    model = TripletModelPhase1(backbone, output_dim=args.output_dim, projection_dropout=args.proj_dropout).to(device)
     optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
 
     total_steps = (len(train_loader) // args.grad_accum) * args.epochs
