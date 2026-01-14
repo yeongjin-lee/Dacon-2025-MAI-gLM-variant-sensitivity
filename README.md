@@ -90,22 +90,22 @@ python -m src.train.phase2_train \
 
 ## 🧱 Data Generation
 
-Triplet datasets are constructed from ClinVar SNVs using multiple strategies:
-1. **Basic SNV substitution**
-2. **Hard negatives** (multi-SNV, same-locus variants)
-3. **PCC-oriented synthetic variants**
-4. **Random positional shifts** (Phase 2 only)
+Triplet datasets are constructed from ClinVar SNVs using multiple strategies.
 
-Scripts are located in:
+### Phase 1 Data (Safety Pretraining)
+Scripts are located in: `src/data/phase1/`
+- **Output:** `data/final_triplets_train_v5_9.csv`
+- **Generators:** Basic SNV substitution, Hard negatives (multi-SNV), PCC synthetic variants.
+
+### Phase 2 Data (Booster Fine-tuning)
+Scripts are located in: `src/data/phase2/`
+- **Script:** `src/data/phase2/generate_triplets_v6_0_random_shift.py`
+- **Key Feature:** Introduces random window shifts (±400bp) to enforce position invariance.
+- **Output:** `data/phase2/final_triplets_train_v6_0.csv`
+
+**Running Phase 2 Data Generation:**
 ```bash
-src/data/phase1/
-```
-
-**Generated outputs:**
-- `final_triplets_train_v5_9.csv` (Phase 1)
-- `final_triplets_train_v6_0.csv` (Phase 2)
-
-*Raw ClinVar files are downloaded on-the-fly and are not included in this repository.*
+python -m src.data.phase2.generate_triplets_v6_0_random_shift
 
 ---
 
