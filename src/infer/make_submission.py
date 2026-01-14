@@ -13,7 +13,7 @@ from tqdm.auto import tqdm
 from transformers import AutoTokenizer, AutoModelForMaskedLM
 from peft import LoraConfig, get_peft_model, TaskType
 
-from src.models.triplet_model import TripletModel
+from src.models.triplet_model_phase1 import TripletModelPhase1
 
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
@@ -65,7 +65,7 @@ def parse_args():
 
 
 @torch.no_grad()
-def run_inference(model: TripletModel, tokenizer, seqs: list[str], device: str, max_len: int, batch_size: int) -> np.ndarray:
+def run_inference(model: TripletModelPhase1, tokenizer, seqs: list[str], device: str, max_len: int, batch_size: int) -> np.ndarray:
     model.eval()
     embs = []
 
@@ -117,7 +117,7 @@ def main():
     )
     backbone = get_peft_model(backbone, peft_config)
 
-    model = TripletModel(
+    model = TripletModelPhase1(
         backbone=backbone,
         output_dim=args.output_dim,
         projection_dropout=args.proj_dropout,
