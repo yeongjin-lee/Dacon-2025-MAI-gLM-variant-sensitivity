@@ -12,8 +12,8 @@ from torch.utils.data import Dataset, DataLoader
 from transformers import AutoTokenizer, AutoModelForMaskedLM, get_cosine_schedule_with_warmup
 from peft import LoraConfig, get_peft_model, TaskType
 
-from src.models.phase2_model import Phase2TripletModel
-from src.losses.phase2_loss import Phase2GenomicContrastiveLoss
+from src.models.triplet_model_phase2 import TripletModelPhase2
+from src.loss.phase2_loss import Phase2GenomicContrastiveLoss
 
 def set_seed(seed=42):
     import random
