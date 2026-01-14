@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-class Phase2TripletModel(nn.Module):
+class TripletModelPhase2(nn.Module):
     def __init__(self, backbone, output_dim=1024, projection_dropout=0.1):
         super().__init__()
         self.backbone = backbone
