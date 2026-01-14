@@ -12,7 +12,7 @@ from torch.utils.data import Dataset, DataLoader
 from transformers import AutoTokenizer, AutoModelForMaskedLM, get_cosine_schedule_with_warmup
 from peft import LoraConfig, get_peft_model, TaskType
 
-from src.models.triplet_model import TripletModel
+from src.models.triplet_model_phase1 import TripletModelPhase1
 from src.loss.contrastive import GenomicContrastiveLoss
 from src.train.loops import train_epoch, validate
 
