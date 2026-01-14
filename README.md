@@ -1,103 +1,171 @@
-# DACON MAI 2025 — gLM Variant Sensitivity (Competition Code)
+# Dacon 2025 MAI — gLM Variant Sensitivity
 
-This repository contains my competition solution for the **DACON MAI (Medical AI) Challenge**.
-It documents the key design choices in the data pipeline and training curriculum (Phase 1).
-Representative results are reported; exact scores may vary depending on environment and random seeds.
+This repository contains my solution for the **DACON 2025 Medical AI (MAI) Challenge**,  
+focusing on improving **genomic variant sensitivity** using **genomic language models (gLMs)**.
+
+The project is organized as a **two-phase training pipeline**:
+- **Phase 1**: Safety-oriented contrastive pretraining on ClinVar-derived triplets  
+- **Phase 2**: Booster fine-tuning with position-invariant pooling and correlation-aware loss  
+
+> ⚠️ **Note** > It is **not intended to be a fully reproducible benchmark** due to competition constraints.  
+> This repository primarily documents the modeling and training decisions explored in this project.
 
 ---
 
-## Environment
-- Python 3.10+
-- GPU recommended (CUDA)
+## 🧬 Problem Overview
+
+Genomic variant interpretation requires embeddings that are:
+- Sensitive to **single-nucleotide variants (SNVs)**
+- Robust to **variant position shifts**
+- Capable of capturing **fine-grained reference-to-variant shifts**
+
+To address this, a large genomic language model is fine-tuned using  
+**contrastive learning with carefully constructed triplets** derived from ClinVar.
 
 ---
 
-## Installation
+## 🧠 Model Backbone
 
+- **Base model**: `InstaDeepAI/nucleotide-transformer-v2-500m-multi-species`
+- **Framework**: PyTorch + HuggingFace Transformers
+- **Parameter-efficient fine-tuning**: LoRA (PEFT)
+
+---
+
+## 🧪 Training Pipeline
+
+### Phase Summary
+
+| Aspect | Phase 1 (Safety) | Phase 2 (Booster) |
+| :--- | :--- | :--- |
+| **Objective** | Embedding space stabilization | Position invariance & distance calibration |
+| **Data** | Fixed-position SNVs | Random-shifted SNVs (±400bp) |
+| **Pooling** | Central + Global Mean | Global Mean + Max Pooling |
+| **Loss** | Margin-based contrastive | Contrastive + **PCC Regularization** |
+
+### Phase 1 — Safety Pretraining (v4.9)
+
+**Goal**
+- Stabilize the embedding space
+- Enforce reliable separation between anchor–positive and anchor–negative pairs
+
+**Key characteristics**
+- Triplet-based contrastive learning
+- Central-token + global-mean pooling
+- Safety-oriented margin loss
+- ClinVar-derived triplets (no positional shift)
+
+**Entry point**
 ```bash
-pip install -r requirements.txt
+python -m src.train.phase1_train \
+  --train_csv data/final_triplets_train_v5_9.csv \
+  --val_csv data/final_triplets_val_v5_9.csv \
+  --output_dir results/phase1_v4_9_safety
 ```
 
-Note: Depending on your environment, installing PyTorch with CUDA may require a separate command from the official PyTorch website.
+### Phase 2 — Booster Fine-tuning (v5.3)
 
----
+**Goal**
+- Improve position invariance
+- Strengthen correlation between variant count and embedding distance
 
-## Data Setup
+> **Why Phase 2?** > This phase addresses a key limitation observed after Phase 1:  
+> embeddings were sensitive to SNVs but still partially entangled with absolute variant positions.
 
-Place the official DACON files under the following paths:
+**Key enhancements**
+- **Random shift data generation**: Window shifts within ±400bp during training
+- **Mean + Max pooling**: Concatenating max-pooling to capture position-invariant features
+- **Correlation-aware loss (PCC term)**: Explicitly encourages a monotonic relationship between the number of introduced SNVs and the resulting **embedding-space distance**.
 
-- `data/raw/test.csv`
-- `data/raw/sample_submission.csv`
-
-Phase 1 training datasets will be generated automatically under:
-
-- `data/final_triplets_train_v5_9.csv`
-- `data/final_triplets_val_v5_9.csv`
-
----
-
-## Phase 1 — Dataset Generation (ClinVar)
-
-This step downloads the ClinVar VCF (GRCh38) and hg38 reference genome,
-then constructs triplet datasets (basic, hard negatives, PCC-style variants).
-
+**Entry point**
 ```bash
-python -m src.data.phase1.build_dataset --save_intermediate
+python -m src.train.phase2_train \
+  --train_csv data/final_triplets_train_v6_0.csv \
+  --val_csv data/final_triplets_val_v6_0.csv \
+  --phase1_weights results/phase1_v4_9_safety/best_model.pt \
+  --output_dir results/phase2_v5_3_booster
 ```
 
-Generated files:
+---
 
-- `data/clinvar_triplets_basic_v5_9.csv`
-- `data/hard_negatives_v5_9.csv`
-- `data/pcc_optimized_triplets_v5_9.csv`
-- `data/final_triplets_train_v5_9.csv`
-- `data/final_triplets_val_v5_9.csv`
+## 🧱 Data Generation
+
+Triplet datasets are constructed from ClinVar SNVs using multiple strategies:
+1. **Basic SNV substitution**
+2. **Hard negatives** (multi-SNV, same-locus variants)
+3. **PCC-oriented synthetic variants**
+4. **Random positional shifts** (Phase 2 only)
+
+Scripts are located in:
+```bash
+src/data/phase1/
+```
+
+**Generated outputs:**
+- `final_triplets_train_v5_9.csv` (Phase 1)
+- `final_triplets_train_v6_0.csv` (Phase 2)
+
+*Raw ClinVar files are downloaded on-the-fly and are not included in this repository.*
 
 ---
 
-## Phase 1 — Training
+## 📁 Repository Structure
 
-Trains a LoRA-adapted nucleotide transformer using a triplet-style objective
-with CDD-based monitoring (v4.9 Safety setting).
-
-```bash
-python -m src.train.phase1_train --output_dir results/phase1_v4_9_safety
+```text
+src/
+├── common/         # lightweight shared utilities (seed, logging)
+├── data/           # data generation scripts
+├── models/
+│   ├── triplet_model.py         # Phase 1 model
+│   └── triplet_model_phase2.py  # Phase 2 model
+├── loss/           # loss functions
+│   ├── contrastive.py
+│   └── phase2_loss.py
+├── train/
+│   ├── phase1_train.py
+│   └── phase2_train.py
+└── infer/          # inference / submission scripts
+    └── make_submission.py
 ```
-
-Resume training from the latest checkpoint:
-
-```bash
-python -m src.train.phase1_train --output_dir results/phase1_v4_9_safety --resume
-```
-
-Training artifacts:
-
-- `results/phase1_v4_9_safety/best_model.pt`
-- `results/phase1_v4_9_safety/latest_checkpoint.pt`
-- training logs saved in the same directory
 
 ---
 
-## Inference — Create Submission File
+## 🏆 Results
 
-Generates embedding vectors for test sequences and creates a submission CSV.
+**DACON MAI Challenge: Top 8% (38 / 477, Individual)**
 
-```bash
-python -m src.infer.make_submission \
-  --model_path results/phase1_v4_9_safety/best_model.pt \
-  --test_csv data/raw/test.csv \
-  --sample_submission data/raw/sample_submission.csv \
-  --output_csv outputs/submission_phase1.csv
-```
+Learned embeddings exhibit:
+- Increased sensitivity to SNVs
+- Improved robustness to positional perturbations
+- Clearer pathogenic–benign separation
 
-Output:
-- `outputs/submission_phase1.csv`
+*Exact leaderboard scores are omitted to avoid overfitting interpretation to a single competition metric.*
 
 ---
 
-## Notes
+## ⚠️ Limitations
 
-- This repository focuses on **competition-oriented implementation and experimental design**,
-  rather than providing a fully reproducible benchmark.
-- Paths and hyperparameters are configurable via command-line arguments.
-- Colab-specific utilities (e.g., Drive mounting) have been removed for clean public release.
+Competition data restrictions prevent full release of:
+- Exact training splits
+- Official test labels
+
+The code prioritizes research clarity over turnkey deployment.
+
+---
+
+## 👤 Author
+
+**Yeongjin Lee** Undergraduate Researcher, Medical AI  
+Seoul Women’s University
+
+**Research interests:**
+- Medical & Genomic AI
+- Foundation Models
+- Representation Learning
+
+---
+
+## 📜 License
+
+This repository is shared for academic and educational purposes only.  
+Please contact the author for reuse beyond this scope.
