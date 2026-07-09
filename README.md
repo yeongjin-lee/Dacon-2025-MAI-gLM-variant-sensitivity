@@ -116,7 +116,7 @@ src/
 ├── common/         # lightweight shared utilities (seed, logging)
 ├── data/           # data generation scripts
 ├── models/
-│   ├── triplet_model.py         # Phase 1 model
+│   ├── triplet_model_phase1.py         # Phase 1 model
 │   └── triplet_model_phase2.py  # Phase 2 model
 ├── loss/           # loss functions
 │   ├── contrastive.py
